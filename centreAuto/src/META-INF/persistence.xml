@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="1.0" xmlns="http://java.sun.com/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_1_0.xsd">
+  <persistence-unit name="centre_auto_piece_PUN" transaction-type="RESOURCE_LOCAL">
+    <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+    <class>facturation.entities.Piece</class>
+    <class>facturation.entities.Adresse</class>
+    <class>facturation.entities.Client</class>
+    <class>facturation.entities.Facture</class>
+    <class>facturation.entities.Ligne</class>
+    <class>facturation.entities.Professionnel</class>
+    <class>facturation.entities.FactureParticulier</class>
+    <class>facturation.entities.FactureProfessionnel</class>
+    <class>facturation.entities.Particulier</class>
+    <properties>
+      <property name="javax.persistence.jdbc.url" value="jdbc:mysql://127.0.0.1/centre_auto_piece?zeroDateTimeBehavior=convertToNull"/>
+      <property name="javax.persistence.jdbc.user" value="root"/>
+      <property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver"/>
+      <property name="javax.persistence.jdbc.password" value=""/>
+    </properties>
+  </persistence-unit>
+</persistence>
