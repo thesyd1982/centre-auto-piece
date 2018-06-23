@@ -65,6 +65,9 @@ public class FacturerParticulier extends javax.swing.JFrame implements Sujet {
         facture.setMode_payement("Espèces");
         facture.setDate_livraison(dateFormatter.format(d));
         initComponents();
+        
+        
+        
         modelPiece.setPieces(pieceList);
 
         this.fs = fs;
@@ -76,6 +79,7 @@ public class FacturerParticulier extends javax.swing.JFrame implements Sujet {
         this.stockJTable.setModel(modelPiece);
 
         this.sorterStock = new TableRowSorter<>(this.stockJTable.getModel());
+        this.sorterStock = FactureUI.cacheSorterPieces.getIfPresent("cacheSorterPieces");
         this.stockJTable.setRowSorter(sorterStock);
 
         observateurs = new ArrayList<>();

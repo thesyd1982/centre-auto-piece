@@ -120,6 +120,38 @@
         </Property>
       </Properties>
     </Component>
+    <Container class="javax.swing.JPopupMenu" name="jPopupPieceTable">
+
+      <Layout class="org.netbeans.modules.form.compat2.layouts.DesignAbsoluteLayout">
+        <Property name="useNullLayout" type="boolean" value="true"/>
+      </Layout>
+      <SubComponents>
+        <MenuItem class="javax.swing.JMenuItem" name="TitrejMenuItem">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Gerer la pi&#xe9;ce"/>
+            <Property name="actionCommand" type="java.lang.String" value=""/>
+          </Properties>
+        </MenuItem>
+        <Component class="javax.swing.JPopupMenu$Separator" name="jSeparator1">
+        </Component>
+        <MenuItem class="javax.swing.JMenuItem" name="modifierjMenuItem">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Modifier"/>
+          </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="modifierjMenuItemActionPerformed"/>
+          </Events>
+        </MenuItem>
+        <MenuItem class="javax.swing.JMenuItem" name="SprrimerjMenuItem">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Supprimer"/>
+          </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="SprrimerjMenuItemActionPerformed"/>
+          </Events>
+        </MenuItem>
+      </SubComponents>
+    </Container>
     <Menu class="javax.swing.JMenuBar" name="appJMenuBar">
       <SubComponents>
         <Menu class="javax.swing.JMenu" name="accueilJM">
@@ -186,12 +218,17 @@
     <AuxValue name="FormSettings_listenerGenerationStyle" type="java.lang.Integer" value="0"/>
     <AuxValue name="FormSettings_variablesLocal" type="java.lang.Boolean" value="false"/>
     <AuxValue name="FormSettings_variablesModifier" type="java.lang.Integer" value="2"/>
-    <AuxValue name="designerSize" type="java.awt.Dimension" value="-84,-19,0,5,115,114,0,18,106,97,118,97,46,97,119,116,46,68,105,109,101,110,115,105,111,110,65,-114,-39,-41,-84,95,68,20,2,0,2,73,0,6,104,101,105,103,104,116,73,0,5,119,105,100,116,104,120,112,0,0,2,-65,0,0,7,90"/>
+    <AuxValue name="designerSize" type="java.awt.Dimension" value="-84,-19,0,5,115,114,0,18,106,97,118,97,46,97,119,116,46,68,105,109,101,110,115,105,111,110,65,-114,-39,-41,-84,95,68,20,2,0,2,73,0,6,104,101,105,103,104,116,73,0,5,119,105,100,116,104,120,112,0,0,2,-93,0,0,7,90"/>
   </AuxValues>
 
   <Layout class="org.netbeans.modules.form.compat2.layouts.DesignCardLayout"/>
   <SubComponents>
     <Container class="javax.swing.JPanel" name="piecesCardJP">
+      <Properties>
+        <Property name="preferredSize" type="java.awt.Dimension" editor="org.netbeans.beaninfo.editors.DimensionEditor">
+          <Dimension value="[800, 640]"/>
+        </Property>
+      </Properties>
       <Constraints>
         <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.DesignCardLayout" value="org.netbeans.modules.form.compat2.layouts.DesignCardLayout$CardConstraintsDescription">
           <CardConstraints cardName="piecesCard"/>
@@ -222,26 +259,36 @@
               <Group type="103" groupAlignment="0" attributes="0">
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace min="-2" pref="6" max="-2" attributes="0"/>
-                      <Group type="103" groupAlignment="0" max="-2" attributes="0">
+                      <Group type="103" groupAlignment="0" attributes="0">
                           <Group type="102" alignment="0" attributes="0">
-                              <Component id="recherchePieceJP" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace min="-2" pref="850" max="-2" attributes="0"/>
-                          </Group>
-                          <Group type="102" alignment="0" attributes="0">
-                              <Component id="ajoutModificationJP" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace max="-2" attributes="0"/>
                               <Group type="103" groupAlignment="0" attributes="0">
-                                  <Group type="102" attributes="0">
-                                      <Component id="valeurStockJL" min="-2" max="-2" attributes="0"/>
+                                  <Component id="ajoutModificationJP" min="-2" max="-2" attributes="0"/>
+                                  <Group type="102" alignment="0" attributes="0">
+                                      <EmptySpace min="-2" pref="15" max="-2" attributes="0"/>
+                                      <Group type="103" groupAlignment="1" attributes="0">
+                                          <Component id="supprimerPieceJB" min="-2" pref="140" max="-2" attributes="0"/>
+                                          <Component id="ajouterPieceJB" min="-2" pref="140" max="-2" attributes="0"/>
+                                      </Group>
                                       <EmptySpace max="-2" attributes="0"/>
-                                  </Group>
-                                  <Group type="102" attributes="0">
-                                      <Component id="piecesJSP" max="32767" attributes="0"/>
-                                      <EmptySpace min="-2" pref="6" max="-2" attributes="0"/>
+                                      <Group type="103" groupAlignment="0" max="-2" attributes="0">
+                                          <Component id="nouvelleJb" max="32767" attributes="0"/>
+                                          <Component id="modifierPieceJB" min="-2" pref="140" max="-2" attributes="0"/>
+                                      </Group>
                                   </Group>
                               </Group>
+                              <EmptySpace max="-2" attributes="0"/>
+                              <Group type="103" groupAlignment="0" max="-2" attributes="0">
+                                  <Group type="102" attributes="0">
+                                      <Component id="valeurStockJL" min="-2" pref="374" max="-2" attributes="0"/>
+                                      <EmptySpace max="32767" attributes="0"/>
+                                      <Component id="nbrRefjL" min="-2" pref="337" max="-2" attributes="0"/>
+                                  </Group>
+                                  <Component id="piecesJSP" min="-2" pref="1015" max="-2" attributes="0"/>
+                              </Group>
                           </Group>
+                          <Component id="recherchePieceJP" min="-2" max="-2" attributes="0"/>
                       </Group>
+                      <EmptySpace max="-2" attributes="0"/>
                   </Group>
               </Group>
             </DimensionLayout>
@@ -250,14 +297,31 @@
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace min="-2" pref="36" max="-2" attributes="0"/>
                       <Component id="recherchePieceJP" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
+                      <EmptySpace min="-2" pref="18" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="ajoutModificationJP" min="-2" max="-2" attributes="0"/>
-                          <Component id="piecesJSP" min="-2" pref="310" max="-2" attributes="0"/>
+                          <Group type="102" attributes="0">
+                              <Component id="ajoutModificationJP" min="-2" pref="296" max="-2" attributes="0"/>
+                              <EmptySpace type="separate" max="-2" attributes="0"/>
+                              <Group type="103" groupAlignment="3" attributes="0">
+                                  <Component id="modifierPieceJB" alignment="3" min="-2" max="-2" attributes="0"/>
+                                  <Component id="supprimerPieceJB" alignment="3" min="-2" max="-2" attributes="0"/>
+                              </Group>
+                              <EmptySpace max="-2" attributes="0"/>
+                              <Group type="103" groupAlignment="3" attributes="0">
+                                  <Component id="nouvelleJb" alignment="3" min="-2" max="-2" attributes="0"/>
+                                  <Component id="ajouterPieceJB" alignment="3" min="-2" max="-2" attributes="0"/>
+                              </Group>
+                          </Group>
+                          <Group type="102" attributes="0">
+                              <Component id="piecesJSP" min="-2" pref="411" max="-2" attributes="0"/>
+                              <EmptySpace min="-2" pref="17" max="-2" attributes="0"/>
+                              <Group type="103" groupAlignment="0" attributes="0">
+                                  <Component id="valeurStockJL" min="-2" pref="19" max="-2" attributes="0"/>
+                                  <Component id="nbrRefjL" min="-2" pref="19" max="-2" attributes="0"/>
+                              </Group>
+                          </Group>
                       </Group>
-                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                      <Component id="valeurStockJL" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
+                      <EmptySpace min="-2" pref="20" max="-2" attributes="0"/>
                   </Group>
               </Group>
             </DimensionLayout>
@@ -283,82 +347,73 @@
                 <DimensionLayout dim="0">
                   <Group type="103" groupAlignment="0" attributes="0">
                       <Group type="102" attributes="0">
-                          <EmptySpace min="6" pref="6" max="-2" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
                           <Group type="103" groupAlignment="0" attributes="0">
                               <Group type="102" attributes="0">
+                                  <Group type="103" groupAlignment="0" attributes="0">
+                                      <Component id="refernceJL" linkSize="39" min="-2" max="-2" attributes="0"/>
+                                      <Component id="designationJL" linkSize="39" alignment="0" min="-2" max="-2" attributes="0"/>
+                                  </Group>
+                                  <EmptySpace max="-2" attributes="0"/>
+                                  <Group type="103" groupAlignment="0" attributes="0">
+                                      <Component id="referencePieceJT" alignment="0" min="-2" pref="155" max="-2" attributes="0"/>
+                                      <Component id="designationPieceJPA" alignment="0" min="-2" pref="233" max="-2" attributes="0"/>
+                                  </Group>
+                              </Group>
+                              <Group type="102" alignment="0" attributes="0">
                                   <Group type="103" groupAlignment="0" attributes="0">
                                       <Component id="prixVenteJL" linkSize="39" alignment="0" min="-2" max="-2" attributes="0"/>
                                       <Component id="prixAchatJL" linkSize="39" alignment="0" min="-2" max="-2" attributes="0"/>
                                       <Component id="quantiteJL" linkSize="39" alignment="0" min="-2" max="-2" attributes="0"/>
                                       <Component id="marqueJL" linkSize="39" alignment="0" min="-2" max="-2" attributes="0"/>
-                                      <Component id="designationJL" linkSize="39" alignment="0" min="-2" max="-2" attributes="0"/>
-                                      <Component id="refernceJL" linkSize="39" alignment="0" min="-2" max="-2" attributes="0"/>
                                   </Group>
-                                  <EmptySpace min="-2" pref="6" max="-2" attributes="0"/>
-                                  <Group type="103" groupAlignment="0" attributes="0">
-                                      <Group type="103" groupAlignment="1" attributes="0">
-                                          <Component id="designationPieceJT" linkSize="14" alignment="1" min="-2" pref="159" max="-2" attributes="0"/>
-                                          <Component id="referencePieceJT" linkSize="14" alignment="1" min="-2" max="-2" attributes="0"/>
-                                          <Component id="marquePieceJT" linkSize="14" alignment="0" min="-2" max="-2" attributes="0"/>
-                                          <Component id="quantiteJT" linkSize="14" alignment="0" min="-2" max="-2" attributes="0"/>
-                                      </Group>
-                                      <Component id="prixVentePieceJT" linkSize="14" min="-2" max="-2" attributes="0"/>
-                                      <Component id="prixAchatPieceJT" linkSize="14" min="-2" pref="180" max="-2" attributes="0"/>
+                                  <EmptySpace max="-2" attributes="0"/>
+                                  <Group type="103" groupAlignment="1" max="-2" attributes="0">
+                                      <Component id="prixVentePieceJT" alignment="0" max="32767" attributes="0"/>
+                                      <Component id="prixAchatPieceJT" alignment="0" max="32767" attributes="0"/>
+                                      <Component id="quantiteJT" alignment="0" max="32767" attributes="0"/>
+                                      <Component id="marquePieceJT" alignment="0" min="-2" pref="154" max="-2" attributes="0"/>
                                   </Group>
-                                  <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
-                              </Group>
-                              <Group type="102" alignment="0" attributes="0">
-                                  <Component id="ajouterPieceJB" min="-2" max="-2" attributes="0"/>
-                                  <EmptySpace type="separate" max="-2" attributes="0"/>
-                                  <Component id="supprimerPieceJB" min="-2" max="-2" attributes="0"/>
-                                  <EmptySpace max="32767" attributes="0"/>
-                                  <Component id="modifierPieceJB" min="-2" pref="80" max="-2" attributes="0"/>
-                                  <EmptySpace min="-2" pref="6" max="-2" attributes="0"/>
                               </Group>
                           </Group>
+                          <EmptySpace max="32767" attributes="0"/>
                       </Group>
                   </Group>
                 </DimensionLayout>
                 <DimensionLayout dim="1">
                   <Group type="103" groupAlignment="0" attributes="0">
                       <Group type="102" alignment="0" attributes="0">
-                          <EmptySpace min="-2" pref="6" max="-2" attributes="0"/>
-                          <Group type="103" groupAlignment="0" attributes="0">
-                              <Component id="refernceJL" linkSize="40" alignment="1" min="-2" max="-2" attributes="0"/>
-                              <Component id="referencePieceJT" linkSize="38" alignment="1" min="-2" max="-2" attributes="0"/>
-                          </Group>
-                          <EmptySpace type="unrelated" max="-2" attributes="0"/>
+                          <EmptySpace max="32767" attributes="0"/>
                           <Group type="103" groupAlignment="3" attributes="0">
-                              <Component id="designationPieceJT" linkSize="38" alignment="3" min="-2" max="-2" attributes="0"/>
-                              <Component id="designationJL" linkSize="40" alignment="3" min="-2" max="-2" attributes="0"/>
+                              <Component id="referencePieceJT" linkSize="38" alignment="3" min="-2" max="-2" attributes="0"/>
+                              <Component id="refernceJL" linkSize="40" alignment="3" min="-2" max="-2" attributes="0"/>
+                          </Group>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Group type="103" groupAlignment="0" attributes="0">
+                              <Component id="designationJL" linkSize="40" min="-2" max="-2" attributes="0"/>
+                              <Component id="designationPieceJPA" min="-2" max="-2" attributes="0"/>
                           </Group>
                           <EmptySpace max="-2" attributes="0"/>
                           <Group type="103" groupAlignment="3" attributes="0">
                               <Component id="marqueJL" linkSize="40" alignment="3" min="-2" max="-2" attributes="0"/>
                               <Component id="marquePieceJT" linkSize="38" alignment="3" min="-2" max="-2" attributes="0"/>
                           </Group>
-                          <EmptySpace min="-2" pref="11" max="-2" attributes="0"/>
+                          <EmptySpace min="-2" pref="30" max="-2" attributes="0"/>
                           <Group type="103" groupAlignment="3" attributes="0">
                               <Component id="quantiteJL" linkSize="40" alignment="3" min="-2" max="-2" attributes="0"/>
                               <Component id="quantiteJT" linkSize="38" alignment="3" min="-2" max="-2" attributes="0"/>
                           </Group>
-                          <EmptySpace max="-2" attributes="0"/>
+                          <EmptySpace type="unrelated" max="-2" attributes="0"/>
                           <Group type="103" groupAlignment="0" attributes="0">
                               <Component id="prixAchatJL" linkSize="40" min="-2" max="-2" attributes="0"/>
                               <Component id="prixAchatPieceJT" linkSize="38" min="-2" max="-2" attributes="0"/>
                           </Group>
-                          <EmptySpace max="-2" attributes="0"/>
+                          <EmptySpace min="-2" max="-2" attributes="0"/>
                           <Group type="103" groupAlignment="3" attributes="0">
                               <Component id="prixVenteJL" linkSize="40" alignment="3" min="-2" max="-2" attributes="0"/>
                               <Component id="prixVentePieceJT" linkSize="38" alignment="3" min="-2" max="-2" attributes="0"/>
                           </Group>
-                          <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
-                          <Group type="103" groupAlignment="3" attributes="0">
-                              <Component id="ajouterPieceJB" alignment="3" min="-2" max="-2" attributes="0"/>
-                              <Component id="modifierPieceJB" alignment="3" min="-2" max="-2" attributes="0"/>
-                              <Component id="supprimerPieceJB" alignment="3" min="-2" max="-2" attributes="0"/>
-                          </Group>
-                          <EmptySpace min="-2" pref="6" max="-2" attributes="0"/>
+                          <EmptySpace min="-2" pref="66" max="-2" attributes="0"/>
                       </Group>
                   </Group>
                 </DimensionLayout>
@@ -367,13 +422,6 @@
                 <Component class="javax.swing.JTextField" name="referencePieceJT">
                   <BindingProperties>
                     <BindingProperty name="text" source="piecesJTable" sourcePath="${selectedElement.reference}" target="referencePieceJT" targetPath="text" updateStrategy="1" immediately="false">
-                      <BindingParameter name="javax.swing.binding.ParameterKeys.TEXT_CHANGE_STRATEGY" value="javax.swing.binding.TextChangeStrategy.ON_TYPE"/>
-                    </BindingProperty>
-                  </BindingProperties>
-                </Component>
-                <Component class="javax.swing.JTextField" name="designationPieceJT">
-                  <BindingProperties>
-                    <BindingProperty name="text" source="piecesJTable" sourcePath="${selectedElement.designation}" target="designationPieceJT" targetPath="text" updateStrategy="1" immediately="false">
                       <BindingParameter name="javax.swing.binding.ParameterKeys.TEXT_CHANGE_STRATEGY" value="javax.swing.binding.TextChangeStrategy.ON_TYPE"/>
                     </BindingProperty>
                   </BindingProperties>
@@ -436,32 +484,30 @@
                     </BindingProperty>
                   </BindingProperties>
                 </Component>
-                <Component class="javax.swing.JButton" name="ajouterPieceJB">
+                <Container class="javax.swing.JScrollPane" name="designationPieceJPA">
                   <Properties>
-                    <Property name="text" type="java.lang.String" value="Ajouter "/>
+                    <Property name="horizontalScrollBarPolicy" type="int" value="31"/>
+                    <Property name="verticalScrollBarPolicy" type="int" value="21"/>
                   </Properties>
-                  <Events>
-                    <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="ajouterPieceJBActionPerformed"/>
-                  </Events>
-                </Component>
-                <Component class="javax.swing.JButton" name="modifierPieceJB">
-                  <Properties>
-                    <Property name="text" type="java.lang.String" value="modifier"/>
-                    <Property name="enabled" type="boolean" value="false"/>
-                  </Properties>
-                  <Events>
-                    <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="modifierPieceJBActionPerformed"/>
-                  </Events>
-                </Component>
-                <Component class="javax.swing.JButton" name="supprimerPieceJB">
-                  <Properties>
-                    <Property name="text" type="java.lang.String" value="supprimer pi&#xe8;ce "/>
-                    <Property name="enabled" type="boolean" value="false"/>
-                  </Properties>
-                  <Events>
-                    <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="supprimerPieceJBActionPerformed"/>
-                  </Events>
-                </Component>
+                  <AuxValues>
+                    <AuxValue name="autoScrollPane" type="java.lang.Boolean" value="true"/>
+                  </AuxValues>
+
+                  <Layout class="org.netbeans.modules.form.compat2.layouts.support.JScrollPaneSupportLayout"/>
+                  <SubComponents>
+                    <Component class="javax.swing.JTextArea" name="designationPieceJTA">
+                      <Properties>
+                        <Property name="columns" type="int" value="20"/>
+                        <Property name="rows" type="int" value="2"/>
+                      </Properties>
+                      <BindingProperties>
+                        <BindingProperty name="text" source="piecesJTable" sourcePath="${selectedElement.designation}" target="designationPieceJTA" targetPath="text" updateStrategy="1" immediately="false">
+                          <BindingParameter name="javax.swing.binding.ParameterKeys.TEXT_CHANGE_STRATEGY" value="javax.swing.binding.TextChangeStrategy.ON_TYPE"/>
+                        </BindingProperty>
+                      </BindingProperties>
+                    </Component>
+                  </SubComponents>
+                </Container>
               </SubComponents>
             </Container>
             <Container class="javax.swing.JPanel" name="recherchePieceJP">
@@ -483,9 +529,11 @@
               <Layout>
                 <DimensionLayout dim="0">
                   <Group type="103" groupAlignment="0" attributes="0">
-                      <Group type="102" alignment="1" attributes="0">
-                          <EmptySpace pref="12" max="32767" attributes="0"/>
+                      <Group type="102" alignment="0" attributes="0">
+                          <EmptySpace max="-2" attributes="0"/>
                           <Component id="recherchePieceJTF" min="-2" pref="398" max="-2" attributes="0"/>
+                          <EmptySpace type="unrelated" max="-2" attributes="0"/>
+                          <Component id="pieceNbrResultatsJl" pref="186" max="32767" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
                       </Group>
                   </Group>
@@ -494,7 +542,10 @@
                   <Group type="103" groupAlignment="0" attributes="0">
                       <Group type="102" alignment="0" attributes="0">
                           <EmptySpace max="-2" attributes="0"/>
-                          <Component id="recherchePieceJTF" min="-2" max="-2" attributes="0"/>
+                          <Group type="103" groupAlignment="3" attributes="0">
+                              <Component id="recherchePieceJTF" alignment="3" min="-2" max="-2" attributes="0"/>
+                              <Component id="pieceNbrResultatsJl" alignment="3" min="-2" max="-2" attributes="0"/>
+                          </Group>
                           <EmptySpace pref="21" max="32767" attributes="0"/>
                       </Group>
                   </Group>
@@ -505,6 +556,8 @@
                   <Events>
                     <EventHandler event="keyReleased" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="recherchePieceJTFKeyReleased"/>
                   </Events>
+                </Component>
+                <Component class="javax.swing.JLabel" name="pieceNbrResultatsJl">
                 </Component>
               </SubComponents>
             </Container>
@@ -631,11 +684,46 @@
                   <Events>
                     <EventHandler event="mouseClicked" listener="java.awt.event.MouseListener" parameters="java.awt.event.MouseEvent" handler="piecesJTableMouseClicked"/>
                     <EventHandler event="mousePressed" listener="java.awt.event.MouseListener" parameters="java.awt.event.MouseEvent" handler="piecesJTableMousePressed"/>
+                    <EventHandler event="mouseReleased" listener="java.awt.event.MouseListener" parameters="java.awt.event.MouseEvent" handler="piecesJTableMouseReleased"/>
                   </Events>
                 </Component>
               </SubComponents>
             </Container>
             <Component class="javax.swing.JLabel" name="valeurStockJL">
+            </Component>
+            <Component class="javax.swing.JLabel" name="nbrRefjL">
+            </Component>
+            <Component class="javax.swing.JButton" name="nouvelleJb">
+              <Properties>
+                <Property name="text" type="java.lang.String" value="Nouvelle"/>
+              </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="nouvelleJbActionPerformed"/>
+              </Events>
+            </Component>
+            <Component class="javax.swing.JButton" name="ajouterPieceJB">
+              <Properties>
+                <Property name="text" type="java.lang.String" value="Ajouter "/>
+              </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="ajouterPieceJBActionPerformed"/>
+              </Events>
+            </Component>
+            <Component class="javax.swing.JButton" name="modifierPieceJB">
+              <Properties>
+                <Property name="text" type="java.lang.String" value="Modifier"/>
+              </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="modifierPieceJBActionPerformed"/>
+              </Events>
+            </Component>
+            <Component class="javax.swing.JButton" name="supprimerPieceJB">
+              <Properties>
+                <Property name="text" type="java.lang.String" value="Supprimer  "/>
+              </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="supprimerPieceJBActionPerformed"/>
+              </Events>
             </Component>
           </SubComponents>
         </Container>
@@ -690,7 +778,7 @@
                       <Group type="102" alignment="0" attributes="0">
                           <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
                           <Component id="conteneurParticulieJP" min="-2" max="-2" attributes="0"/>
-                          <EmptySpace max="32767" attributes="0"/>
+                          <EmptySpace pref="164" max="32767" attributes="0"/>
                       </Group>
                   </Group>
                 </DimensionLayout>
@@ -1127,7 +1215,7 @@
                       <Group type="102" alignment="0" attributes="0">
                           <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
                           <Component id="conteneurProfessionnelJP" min="-2" max="-2" attributes="0"/>
-                          <EmptySpace pref="154" max="32767" attributes="0"/>
+                          <EmptySpace pref="126" max="32767" attributes="0"/>
                       </Group>
                   </Group>
                 </DimensionLayout>
@@ -1580,7 +1668,7 @@
                               <Component id="ajouterParticulieJP" linkSize="50" min="-2" max="-2" attributes="0"/>
                           </Group>
                           <EmptySpace max="-2" attributes="0"/>
-                          <Component id="facturesParticulieJSP" pref="458" max="32767" attributes="0"/>
+                          <Component id="facturesParticulieJSP" pref="430" max="32767" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
                           <Group type="103" groupAlignment="1" attributes="0">
                               <Component id="jLabel1" min="-2" max="-2" attributes="0"/>
@@ -1940,7 +2028,7 @@
                               <Component id="caProfessionnelTitreJL" min="-2" max="-2" attributes="0"/>
                               <Component id="caProfessionnelJL" min="-2" pref="21" max="-2" attributes="0"/>
                           </Group>
-                          <EmptySpace pref="39" max="32767" attributes="0"/>
+                          <EmptySpace max="32767" attributes="0"/>
                       </Group>
                   </Group>
                 </DimensionLayout>
@@ -2171,7 +2259,7 @@
                       <Group type="102" alignment="0" attributes="0">
                           <EmptySpace min="-2" pref="24" max="-2" attributes="0"/>
                           <Component id="jPanel1" min="-2" max="-2" attributes="0"/>
-                          <EmptySpace pref="436" max="32767" attributes="0"/>
+                          <EmptySpace pref="408" max="32767" attributes="0"/>
                       </Group>
                   </Group>
                 </DimensionLayout>

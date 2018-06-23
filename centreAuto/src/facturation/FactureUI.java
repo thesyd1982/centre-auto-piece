@@ -10,7 +10,6 @@ package facturation;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.sun.rowset.internal.Row;
 import facturation.dao.FacturationDao;
 import facturation.entities.Adresse;
 
@@ -27,16 +26,23 @@ import facturation.formulaires.FormulaireProfessionnel;
 import java.awt.CardLayout;
 import java.awt.Container;
 import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -45,6 +51,7 @@ import javax.persistence.EntityTransaction;
 import javax.persistence.Query;
 import javax.swing.JOptionPane;
 import javax.swing.RowFilter;
+import javax.swing.SwingUtilities;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 
@@ -74,9 +81,11 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     
     private static Cache<String, ArrayList<Piece>> cachePiece ;
     private static Cache<String, ArrayList<Piece>> cachePieceRecherche ;
-    private static Cache<String,TableRowSorter<TableModel>>cacheSorterPieces;
+    protected static Cache<String,TableRowSorter<TableModel>>cacheSorterPieces;
     private static Piece pieceSelectionee ;
     private static String recherchePrecedante = "";
+    
+    private int cmpt = 0 ;
     
     /**
      * Creates new form Facture
@@ -84,22 +93,33 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     
     public FactureUI() {
         
-        
-  
-        
         initComponents();
         
-        
-        
+        //<editor-fold defaultstate="collapsed" desc="transfert de focus sur le JtextArea avec TAB">
+        designationPieceJTA.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_TAB) {
+                    if (e.getModifiers() > 0) {
+                        designationPieceJTA.transferFocusBackward();
+                    } else {
+                        designationPieceJTA.transferFocus();
+                    }
+                    e.consume();
+                }
+            }
+        });
+//</editor-fold>
+
         cachePiece = CacheBuilder.newBuilder()
        .maximumSize(100) // Taille Max
        .expireAfterWrite(24, TimeUnit.HOURS) // TTL
        .build();
         
         chargementCachePieces();
+        affichageNbrRefs();
+        pieceListFromCachePieces();
         
-        List b = new ArrayList(cachePiece.getIfPresent("cachePieces"));
-        this.pieceList.addAll(b);
         bindingPiecesTable();
         
        cachePieceRecherche = CacheBuilder.newBuilder()
@@ -107,7 +127,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
             .expireAfterWrite(24, TimeUnit.HOURS) // TTL
             .build();
        
-       chargementCachePiecesRecherche(this.recherchePrecedante);
+       chargementCachePiecesRecherche(FactureUI.recherchePrecedante);
        
         //<editor-fold defaultstate="collapsed" desc="comment">
          cacheSorterPieces = CacheBuilder.newBuilder()
@@ -133,8 +153,8 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         //</editor-fold>
         
         
-        
-        
+        piecesJTable.setComponentPopupMenu(jPopupPieceTable);
+        this.piecesJTable.setSelectionMode(0);
         
         
         this.sorterParticulie = new TableRowSorter<>(this.particulieJTable.getModel());
@@ -158,8 +178,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         this.getValeurStockRestant();
         updateInfos();
         
-        
-       
+        razPieceInterface();
         
     }
 
@@ -169,9 +188,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         s =cacheSorterPieces.getIfPresent("cacheSorterPieces");
         if (s == null) {
             //Calcul de la valeur et mise en cachePiece
-            
             s=createPieceSorter();
-            
             cacheSorterPieces.put("cacheSorterPieces", s);
         }
     }
@@ -181,10 +198,8 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         RowFilter rowFilter = null;
         
         String ref = "";
-        
-        
-        rechercheParRef(ref);
-        
+        //rechercheParRef(ref);
+        pieceListFromCachePieces();
         rowFilter = RowFilter.regexFilter(
                 Pattern.compile(ref,
                         Pattern.CASE_INSENSITIVE).toString(),0);
@@ -194,57 +209,75 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     }
 
     private void chargementCachePieces() {
-        ArrayList<Piece> cp = new ArrayList<>();
+        ArrayList<Piece> cp ;
         
-        cp = new ArrayList<>();
         cp =cachePiece.getIfPresent("cachePieces");
         if (cp == null) {
-            //Calcul de la valeur et mise en cachePiece
-            
+            //Calcul de la valeur et mise en cache
             pieceQuery = entityManager.createQuery("SELECT p FROM Piece p");
-            cp = new ArrayList<>(pieceQuery.getResultList());
             
+           ArrayList<Piece> resD = new ArrayList<>(pieceQuery.getResultList());
+             Set set = new HashSet() ;
+                set.addAll(resD) ;
+                cp = new ArrayList(set) ;
+                
             cachePiece.put("cachePieces", cp);
+            
+            Collections.sort(cp, new Comparator<Piece>() {
+                        @Override
+                        public int compare(Piece p2, Piece p1)
+                        {
+                            return  p2.getId_piece().compareTo(p1.getId_piece());
+                        }
+                    });
+            
+            
         }
     }
 
     
     private void chargementCachePiecesRecherche(String recherche) {
-        ArrayList<Piece> cpr = new ArrayList<>();
         
-        cpr = new ArrayList<>();
-        cpr =cachePieceRecherche.getIfPresent("cachePieceRecherche");
-        if (cpr == null && recherche!=this.recherchePrecedante) {
-            //Calcul de la valeur et mise en cachePiece
-         if(recherche == ""){
-            pieceQuery = entityManager.createQuery("SELECT p FROM Piece p");
-            cpr = new ArrayList<>(pieceQuery.getResultList());
+        ArrayList<Piece> cpr;
+        cpr =cachePieceRecherche.getIfPresent("cachePiecesRecherche");
+        
+        if(recherche==""){
+              
+            cpr = new ArrayList<>(cachePiece.getIfPresent("cachePieces"));
+   
          }
-         else{
+        else {
+        if (!recherche.equals(FactureUI.recherchePrecedante)) {
+            //Calcul de la valeur et mise en cache
+              ArrayList  resD = new ArrayList<>();
+    
                 Query pieceQuery1 = entityManager.createQuery("SELECT p FROM Piece p where p.reference LIKE \'%"+recherche+"%\'");
                 Query pieceQuery2 = entityManager.createQuery("SELECT p FROM Piece p where p.designation LIKE \'%"+recherche+"%\'");
                 Query pieceQuery3 = entityManager.createQuery("SELECT p FROM Piece p where p.marque LIKE \'%"+recherche+"%\'");      
         
-             cpr = new ArrayList<>(pieceQuery1.getResultList());
-
-                cpr.addAll(pieceQuery2.getResultList());
-                cpr.addAll(pieceQuery3.getResultList()); 
+                resD = new ArrayList<>(pieceQuery1.getResultList());
+                resD.addAll(pieceQuery2.getResultList());
+                resD.addAll(pieceQuery3.getResultList()); 
+                
+                cpr = supprimerDoublonsListPieces(resD);
          }
+       
         
-        cachePieceRecherche.put("cachePiecesRecherche", cpr);
-        this.recherchePrecedante = recherche;
+       /// JOptionPane.showMessageDialog(null, cpr.size()+"chargement cache recherche");
+        JOptionPane.showMessageDialog(null, cachePieceRecherche.getIfPresent("cachePiecesRecherche").size()+"chargement cache recherche");
+    
         }
+        
+        cachePieceRecherche.invalidateAll();
+        cachePieceRecherche.cleanUp();
+        cachePieceRecherche.put("cachePiecesRecherche", cpr);
+        FactureUI.recherchePrecedante = recherche;
     }
     
     
     
     
-    private void showPieces() {
-        
-         bindingPiecesTable();
-        
-        
-    }
+    
     
     private void removePiece(Piece piece) {
         this.fs.removePiece(piece.getId_piece());
@@ -268,40 +301,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     
     
     
-    private void bindingPiecesTable() {
-        org.jdesktop.swingbinding.JTableBinding jTableBinding = org.jdesktop.swingbinding.SwingBindings.createJTableBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ_WRITE, pieceList, piecesJTable);
-        org.jdesktop.swingbinding.JTableBinding.ColumnBinding columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${id_piece}"));
-        columnBinding.setColumnName("N° Piece");
-        columnBinding.setColumnClass(Long.class);
-        columnBinding.setEditable(false);
-        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${reference}"));
-        columnBinding.setColumnName("Reference");
-        columnBinding.setColumnClass(String.class);
-        columnBinding.setEditable(false);
-        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${designation}"));
-        columnBinding.setColumnName("Designation");
-        columnBinding.setColumnClass(String.class);
-        columnBinding.setEditable(false);
-        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${marque}"));
-        columnBinding.setColumnName("Marque");
-        columnBinding.setColumnClass(String.class);
-        columnBinding.setEditable(false);
-        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${prixAchat}"));
-        columnBinding.setColumnName("Prix Achat");
-        columnBinding.setColumnClass(Double.class);
-        columnBinding.setEditable(false);
-        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${prixVente}"));
-        columnBinding.setColumnName("Prix Vente");
-        columnBinding.setColumnClass(Double.class);
-        columnBinding.setEditable(false);
-        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${quantite}"));
-        columnBinding.setColumnName("Quantite");
-        columnBinding.setColumnClass(Integer.class);
-        columnBinding.setEditable(false);
-        
-        jTableBinding.bind();
-        
-    }
+    
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -331,12 +331,16 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         filtreFactureParticulierBG = new javax.swing.ButtonGroup();
         filtreFactureProfessionnelBG = new javax.swing.ButtonGroup();
         list1 = java.beans.Beans.isDesignTime() ? java.util.Collections.emptyList() : factureParticulierQuery.getResultList();
+        jPopupPieceTable = new javax.swing.JPopupMenu();
+        TitrejMenuItem = new javax.swing.JMenuItem();
+        jSeparator1 = new javax.swing.JPopupMenu.Separator();
+        modifierjMenuItem = new javax.swing.JMenuItem();
+        SprrimerjMenuItem = new javax.swing.JMenuItem();
         piecesCardJP = new javax.swing.JPanel();
         conteneurStockJP = new javax.swing.JPanel();
         stockJP = new javax.swing.JPanel();
         ajoutModificationJP = new javax.swing.JPanel();
         referencePieceJT = new javax.swing.JTextField();
-        designationPieceJT = new javax.swing.JTextField();
         prixAchatPieceJT = new javax.swing.JTextField();
         refernceJL = new javax.swing.JLabel();
         designationJL = new javax.swing.JLabel();
@@ -347,14 +351,19 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         quantiteJT = new javax.swing.JTextField();
         prixVenteJL = new javax.swing.JLabel();
         prixVentePieceJT = new javax.swing.JTextField();
-        ajouterPieceJB = new javax.swing.JButton();
-        modifierPieceJB = new javax.swing.JButton();
-        supprimerPieceJB = new javax.swing.JButton();
+        designationPieceJPA = new javax.swing.JScrollPane();
+        designationPieceJTA = new javax.swing.JTextArea();
         recherchePieceJP = new javax.swing.JPanel();
         recherchePieceJTF = new javax.swing.JTextField();
+        pieceNbrResultatsJl = new javax.swing.JLabel();
         piecesJSP = new javax.swing.JScrollPane();
         piecesJTable = new javax.swing.JTable();
         valeurStockJL = new javax.swing.JLabel();
+        nbrRefjL = new javax.swing.JLabel();
+        nouvelleJb = new javax.swing.JButton();
+        ajouterPieceJB = new javax.swing.JButton();
+        modifierPieceJB = new javax.swing.JButton();
+        supprimerPieceJB = new javax.swing.JButton();
         clientsJP = new javax.swing.JPanel();
         clientsJTP = new javax.swing.JTabbedPane();
         particuliesTabJP = new javax.swing.JPanel();
@@ -456,10 +465,33 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         clientsJMI = new javax.swing.JMenuItem();
         factureJMI = new javax.swing.JMenuItem();
 
+        TitrejMenuItem.setText("Gerer la piéce");
+        TitrejMenuItem.setActionCommand("");
+        jPopupPieceTable.add(TitrejMenuItem);
+        jPopupPieceTable.add(jSeparator1);
+
+        modifierjMenuItem.setText("Modifier");
+        modifierjMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                modifierjMenuItemActionPerformed(evt);
+            }
+        });
+        jPopupPieceTable.add(modifierjMenuItem);
+
+        SprrimerjMenuItem.setText("Supprimer");
+        SprrimerjMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                SprrimerjMenuItemActionPerformed(evt);
+            }
+        });
+        jPopupPieceTable.add(SprrimerjMenuItem);
+
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Facturation");
         setName("mainJF"); // NOI18N
         getContentPane().setLayout(new java.awt.CardLayout());
+
+        piecesCardJP.setPreferredSize(new java.awt.Dimension(800, 640));
 
         conteneurStockJP.setLayout(new javax.swing.BoxLayout(conteneurStockJP, javax.swing.BoxLayout.LINE_AXIS));
         piecesCardJP.add(conteneurStockJP);
@@ -470,9 +502,6 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         ajoutModificationJP.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Ajout / Modification des pieces", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.TOP));
 
         org.jdesktop.beansbinding.Binding binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ, piecesJTable, org.jdesktop.beansbinding.ELProperty.create("${selectedElement.reference}"), referencePieceJT, org.jdesktop.beansbinding.BeanProperty.create("text"));
-        bindingGroup.addBinding(binding);
-
-        binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ, piecesJTable, org.jdesktop.beansbinding.ELProperty.create("${selectedElement.designation}"), designationPieceJT, org.jdesktop.beansbinding.BeanProperty.create("text"));
         bindingGroup.addBinding(binding);
 
         binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ, piecesJTable, org.jdesktop.beansbinding.ELProperty.create("${selectedElement.prixAchat}"), prixAchatPieceJT, org.jdesktop.beansbinding.BeanProperty.create("text"));
@@ -499,87 +528,69 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ, piecesJTable, org.jdesktop.beansbinding.ELProperty.create("${selectedElement.prixVente}"), prixVentePieceJT, org.jdesktop.beansbinding.BeanProperty.create("text"));
         bindingGroup.addBinding(binding);
 
-        ajouterPieceJB.setText("Ajouter ");
-        ajouterPieceJB.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                ajouterPieceJBActionPerformed(evt);
-            }
-        });
+        designationPieceJPA.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        designationPieceJPA.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
 
-        modifierPieceJB.setText("modifier");
-        modifierPieceJB.setEnabled(false);
-        modifierPieceJB.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                modifierPieceJBActionPerformed(evt);
-            }
-        });
+        designationPieceJTA.setColumns(20);
+        designationPieceJTA.setRows(2);
 
-        supprimerPieceJB.setText("supprimer pièce ");
-        supprimerPieceJB.setEnabled(false);
-        supprimerPieceJB.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                supprimerPieceJBActionPerformed(evt);
-            }
-        });
+        binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ, piecesJTable, org.jdesktop.beansbinding.ELProperty.create("${selectedElement.designation}"), designationPieceJTA, org.jdesktop.beansbinding.BeanProperty.create("text"));
+        bindingGroup.addBinding(binding);
+
+        designationPieceJPA.setViewportView(designationPieceJTA);
 
         javax.swing.GroupLayout ajoutModificationJPLayout = new javax.swing.GroupLayout(ajoutModificationJP);
         ajoutModificationJP.setLayout(ajoutModificationJPLayout);
         ajoutModificationJPLayout.setHorizontalGroup(
             ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(ajoutModificationJPLayout.createSequentialGroup()
-                .addGap(6, 6, 6)
+                .addContainerGap()
                 .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(ajoutModificationJPLayout.createSequentialGroup()
+                        .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(refernceJL)
+                            .addComponent(designationJL))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(referencePieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, 155, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(designationPieceJPA, javax.swing.GroupLayout.PREFERRED_SIZE, 233, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(ajoutModificationJPLayout.createSequentialGroup()
                         .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(prixVenteJL)
                             .addComponent(prixAchatJL)
                             .addComponent(quantiteJL)
-                            .addComponent(marqueJL)
-                            .addComponent(designationJL)
-                            .addComponent(refernceJL))
-                        .addGap(6, 6, 6)
-                        .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addComponent(designationPieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(referencePieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(marquePieceJT, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(quantiteJT, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(prixVentePieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(prixAchatPieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, 180, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(12, 12, 12))
-                    .addGroup(ajoutModificationJPLayout.createSequentialGroup()
-                        .addComponent(ajouterPieceJB)
-                        .addGap(18, 18, 18)
-                        .addComponent(supprimerPieceJB)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(modifierPieceJB, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(6, 6, 6))))
+                            .addComponent(marqueJL))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(prixVentePieceJT, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(prixAchatPieceJT, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(quantiteJT, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(marquePieceJT, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 154, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
-
-        ajoutModificationJPLayout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {designationPieceJT, marquePieceJT, prixAchatPieceJT, prixVentePieceJT, quantiteJT, referencePieceJT});
 
         ajoutModificationJPLayout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {designationJL, marqueJL, prixAchatJL, prixVenteJL, quantiteJL, refernceJL});
 
         ajoutModificationJPLayout.setVerticalGroup(
             ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(ajoutModificationJPLayout.createSequentialGroup()
-                .addGap(6, 6, 6)
-                .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(refernceJL, javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(referencePieceJT, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(designationPieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(designationJL))
+                    .addComponent(referencePieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(refernceJL))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(designationJL)
+                    .addComponent(designationPieceJPA, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(marqueJL)
                     .addComponent(marquePieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(11, 11, 11)
+                .addGap(30, 30, 30)
                 .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(quantiteJL)
                     .addComponent(quantiteJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(prixAchatJL)
                     .addComponent(prixAchatPieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -587,15 +598,10 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
                 .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(prixVenteJL)
                     .addComponent(prixVentePieceJT, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(12, 12, 12)
-                .addGroup(ajoutModificationJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(ajouterPieceJB)
-                    .addComponent(modifierPieceJB)
-                    .addComponent(supprimerPieceJB))
-                .addGap(6, 6, 6))
+                .addGap(66, 66, 66))
         );
 
-        ajoutModificationJPLayout.linkSize(javax.swing.SwingConstants.VERTICAL, new java.awt.Component[] {designationPieceJT, marquePieceJT, prixAchatPieceJT, prixVentePieceJT, quantiteJT, referencePieceJT});
+        ajoutModificationJPLayout.linkSize(javax.swing.SwingConstants.VERTICAL, new java.awt.Component[] {marquePieceJT, prixAchatPieceJT, prixVentePieceJT, quantiteJT, referencePieceJT});
 
         ajoutModificationJPLayout.linkSize(javax.swing.SwingConstants.VERTICAL, new java.awt.Component[] {designationJL, marqueJL, prixAchatJL, prixVenteJL, quantiteJL, refernceJL});
 
@@ -611,16 +617,20 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         recherchePieceJP.setLayout(recherchePieceJPLayout);
         recherchePieceJPLayout.setHorizontalGroup(
             recherchePieceJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, recherchePieceJPLayout.createSequentialGroup()
-                .addContainerGap(12, Short.MAX_VALUE)
+            .addGroup(recherchePieceJPLayout.createSequentialGroup()
+                .addContainerGap()
                 .addComponent(recherchePieceJTF, javax.swing.GroupLayout.PREFERRED_SIZE, 398, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(pieceNbrResultatsJl, javax.swing.GroupLayout.DEFAULT_SIZE, 186, Short.MAX_VALUE)
                 .addContainerGap())
         );
         recherchePieceJPLayout.setVerticalGroup(
             recherchePieceJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(recherchePieceJPLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(recherchePieceJTF, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(recherchePieceJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(recherchePieceJTF, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(pieceNbrResultatsJl))
                 .addContainerGap(21, Short.MAX_VALUE))
         );
 
@@ -671,8 +681,39 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
             public void mousePressed(java.awt.event.MouseEvent evt) {
                 piecesJTableMousePressed(evt);
             }
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                piecesJTableMouseReleased(evt);
+            }
         });
         piecesJSP.setViewportView(piecesJTable);
+
+        nouvelleJb.setText("Nouvelle");
+        nouvelleJb.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                nouvelleJbActionPerformed(evt);
+            }
+        });
+
+        ajouterPieceJB.setText("Ajouter ");
+        ajouterPieceJB.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                ajouterPieceJBActionPerformed(evt);
+            }
+        });
+
+        modifierPieceJB.setText("Modifier");
+        modifierPieceJB.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                modifierPieceJBActionPerformed(evt);
+            }
+        });
+
+        supprimerPieceJB.setText("Supprimer  ");
+        supprimerPieceJB.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                supprimerPieceJBActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout stockJPLayout = new javax.swing.GroupLayout(stockJP);
         stockJP.setLayout(stockJPLayout);
@@ -680,33 +721,53 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
             stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(stockJPLayout.createSequentialGroup()
                 .addGap(6, 6, 6)
-                .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(stockJPLayout.createSequentialGroup()
-                        .addComponent(recherchePieceJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(850, 850, 850))
-                    .addGroup(stockJPLayout.createSequentialGroup()
-                        .addComponent(ajoutModificationJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(ajoutModificationJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(stockJPLayout.createSequentialGroup()
-                                .addComponent(valeurStockJL)
-                                .addContainerGap())
+                                .addGap(15, 15, 15)
+                                .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(supprimerPieceJB, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(ajouterPieceJB, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(nouvelleJb, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(modifierPieceJB, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addGroup(stockJPLayout.createSequentialGroup()
-                                .addComponent(piecesJSP)
-                                .addGap(6, 6, 6))))))
+                                .addComponent(valeurStockJL, javax.swing.GroupLayout.PREFERRED_SIZE, 374, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(nbrRefjL, javax.swing.GroupLayout.PREFERRED_SIZE, 337, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(piecesJSP, javax.swing.GroupLayout.PREFERRED_SIZE, 1015, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(recherchePieceJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap())
         );
         stockJPLayout.setVerticalGroup(
             stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(stockJPLayout.createSequentialGroup()
                 .addGap(36, 36, 36)
                 .addComponent(recherchePieceJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(12, 12, 12)
+                .addGap(18, 18, 18)
                 .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(ajoutModificationJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(piecesJSP, javax.swing.GroupLayout.PREFERRED_SIZE, 310, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(valeurStockJL)
-                .addContainerGap())
+                    .addGroup(stockJPLayout.createSequentialGroup()
+                        .addComponent(ajoutModificationJP, javax.swing.GroupLayout.PREFERRED_SIZE, 296, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(modifierPieceJB)
+                            .addComponent(supprimerPieceJB))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(nouvelleJb)
+                            .addComponent(ajouterPieceJB)))
+                    .addGroup(stockJPLayout.createSequentialGroup()
+                        .addComponent(piecesJSP, javax.swing.GroupLayout.PREFERRED_SIZE, 411, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(17, 17, 17)
+                        .addGroup(stockJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(valeurStockJL, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(nbrRefjL, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGap(20, 20, 20))
         );
 
         recherchePieceJP.getAccessibleContext().setAccessibleName("Rechercher Par");
@@ -962,7 +1023,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
             .addGroup(particuliesTabJPLayout.createSequentialGroup()
                 .addGap(12, 12, 12)
                 .addComponent(conteneurParticulieJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(164, Short.MAX_VALUE))
         );
 
         clientsJTP.addTab("Particuliers", particuliesTabJP);
@@ -1184,7 +1245,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
             .addGroup(professionnelsTabJPLayout.createSequentialGroup()
                 .addGap(12, 12, 12)
                 .addComponent(conteneurProfessionnelJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(154, Short.MAX_VALUE))
+                .addContainerGap(126, Short.MAX_VALUE))
         );
 
         clientsJTP.addTab("Professionnels", professionnelsTabJP);
@@ -1374,7 +1435,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
                     .addComponent(rechercheFactureParticulierJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(ajouterParticulieJP, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(facturesParticulieJSP, javax.swing.GroupLayout.DEFAULT_SIZE, 458, Short.MAX_VALUE)
+                .addComponent(facturesParticulieJSP, javax.swing.GroupLayout.DEFAULT_SIZE, 430, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(factureParticulierJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(jLabel1)
@@ -1527,7 +1588,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
                 .addGroup(factureProfessionnelJPLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(caProfessionnelTitreJL)
                     .addComponent(caProfessionnelJL, javax.swing.GroupLayout.PREFERRED_SIZE, 21, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(39, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         facturesJTabbedPane.addTab("Facture Professionnel", factureProfessionnelJP);
@@ -1661,7 +1722,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
             .addGroup(infosJPLayout.createSequentialGroup()
                 .addGap(24, 24, 24)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(436, Short.MAX_VALUE))
+                .addContainerGap(408, Short.MAX_VALUE))
         );
 
         facturesJTabbedPane.addTab("Infos", infosJP);
@@ -1717,126 +1778,6 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     private void clientsJMIActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clientsJMIActionPerformed
         changerCard("clientsCard");
     }//GEN-LAST:event_clientsJMIActionPerformed
-
-    private void ajouterPieceJBActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ajouterPieceJBActionPerformed
-       ajouterPieceJtableRow();
-       
-       resetFormulairePiece();  
-      // this.recherchePieceJTFActionPerformed(evt);
-    }//GEN-LAST:event_ajouterPieceJBActionPerformed
-
-    private void modifierPieceJBActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_modifierPieceJBActionPerformed
-        
-        String message ="êtes-vous sûr de vouloir modifier cette pièce?";
-        String titre = "Modification de la pièce";
-        
-        ArrayList test = new ArrayList<Piece>();
-            
-        test = cachePiece.getIfPresent("cachePieces");
-        Piece  lastp  = (Piece) test.get(test.size()-1);
-        System.out.println(lastp);
-        
-        
-        int confirmation = JOptionPane.showConfirmDialog(null,message,titre,JOptionPane.OK_CANCEL_OPTION);
-        
-        if(JOptionPane.OK_OPTION == confirmation )
-        {
-                FormulairePiece f = initFormulairePiece();
-                Piece newPiece = null ;  
-                if(f.hydrate().isEmpty())
-                {
-                    newPiece = f.getPiece();
-                    
-                    newPiece.setId_piece(pieceSelectionee.getId_piece());
-                    
-                    this.fs.updatePiece(newPiece);
-                    
-                    
-                    Iterator<Piece> iterator = pieceList.iterator();
-                        int index = 0;
-                    while(iterator.hasNext()){
-                        if(Objects.equals((iterator.next()).getId_piece(), pieceSelectionee.getId_piece())){
-                            index++;
-                            
-                        }
-                    }
-                    pieceList.set(index , newPiece);
-                    
-                   
-                    updatePieceList();
-                    
-                    message ="La pièce a été modifiée";
-                    JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
-                }
-                else
-                {
-                    displayError(this.conteneurStockJP,f.validate());
-                    message ="Opération Annulée";
-                    JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
-                }
-                  
-        }
-        else
-        {
-            message ="Opération Annulée";
-            JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
-        }
-        showPieces();
-        resetFormulairePiece();
-        
-    }//GEN-LAST:event_modifierPieceJBActionPerformed
-
-    private void supprimerPieceJBActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_supprimerPieceJBActionPerformed
-        
-        FormulairePiece f = initFormulairePiece();
-        String message ="êtes-vous sûr de vouloir supprimer cette pièce du stock ? \n cette opreation est irreversible";
-        String titre = "Suppréssion de la pièce";
-        int confirmation = JOptionPane.showConfirmDialog(null,message,titre,JOptionPane.WARNING_MESSAGE);
-       
-        JOptionPane.showMessageDialog(null, "Piece selectionée avant supprsion:"+pieceSelectionee);
-        
-        if(JOptionPane.OK_OPTION == confirmation )
-        {
-            
-            Piece p = pieceSelectionee;
-            
-            System.out.println(p);
-            
-            
-            Iterator<Piece> iterator = pieceList.iterator();
-
-            while(iterator.hasNext()){
-                if(Objects.equals((iterator.next()).getId_piece(), pieceSelectionee.getId_piece())){
-                    iterator.remove();
-                }
-            }
-             
-           
-            removePiece(p);
-            
-            updatePieceList();
-            
-            
-            message ="La piece a etée supprimer du stock";
-            JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
-            
-        }
-        else
-        {
-            message ="L'operation de suppression annulée";
-            JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
-           
-        }
-        
-        this.resetFormulairePiece();
-        showPieces();
-    }//GEN-LAST:event_supprimerPieceJBActionPerformed
-
-    private void piecesJTableMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_piecesJTableMousePressed
-           
-           
-           
-    }//GEN-LAST:event_piecesJTableMousePressed
 
     private void factureJMIActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_factureJMIActionPerformed
         changerCard("facturesCard");
@@ -2105,71 +2046,74 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         changerCard("piecesCard");
     }//GEN-LAST:event_jButton4ActionPerformed
 
-    private void recherchePieceJTFKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_recherchePieceJTFKeyReleased
+    private ArrayList<Piece> rechercheParRefDesMarque(String recherche) {
         
         
+        ArrayList<Piece>  res = new ArrayList<>();
         
-        
-        int Ref = 1, Marque=2, Designation = 3;
-        int[] coloumns = {Ref, Marque ,Designation};
-    
-        RowFilter rowFilter = null;
-        String designation = this.recherchePieceJTF.getText().toUpperCase().trim();
-        
-        
-        
-        rechercheParRef(designation);
-        
-        rowFilter = RowFilter.regexFilter(
-            Pattern.compile(designation,
-                Pattern.CASE_INSENSITIVE).toString(),coloumns);
-        
-        sorterPiece = cacheSorterPieces.getIfPresent("cacheSorterPieces");
-        this.sorterPiece.setRowFilter(rowFilter);
-        
-        
-    }//GEN-LAST:event_recherchePieceJTFKeyReleased
-
-    private void rechercheParRef(String ref) {
-        
-        
-       
-        
-        if(ref.length()>=3){
+        if(recherche!=""){
+            ArrayList<Piece>  resD = new ArrayList<>();
+            Query pieceQuery1 = entityManager.createQuery("SELECT p FROM Piece p where p.reference LIKE \'%"+recherche+"%\'");
+            Query pieceQuery2 = entityManager.createQuery("SELECT p FROM Piece p where p.designation LIKE \'%"+recherche+"%\'");
+            Query pieceQuery3 = entityManager.createQuery("SELECT p FROM Piece p where p.marque LIKE \'%"+recherche+"%\'");
             
-            Query pieceQuery1 = entityManager.createQuery("SELECT p FROM Piece p where p.reference LIKE \'%"+ref+"%\'");
-            Query pieceQuery2 = entityManager.createQuery("SELECT p FROM Piece p where p.designation LIKE \'%"+ref+"%\'");
+                resD.addAll(pieceQuery1.getResultList());
+                resD.addAll(pieceQuery2.getResultList());
+                resD.addAll(pieceQuery3.getResultList());
                 
-                pieceList.clear();
-                pieceList.addAll(pieceQuery1.getResultList());
-                pieceList.addAll(pieceQuery2.getResultList());    
+                
+                res = supprimerDoublonsListPieces(resD) ;
+             
         }
         
         else{
-            System.out.println("pieceListFromCachePieces de rechrcher");
-                pieceListFromCachePieces();
+            //System.out.println("pieceListFromCachePieces de rechrcher");
+               res = listFromPiecesCache("cachePiece");
             }
-        
+        return res;
+    }
+
+    public ArrayList<Piece> supprimerDoublonsListPieces(ArrayList<Piece> ListeAvecDoublons) {
+        Set set = new HashSet() ;
+        set.addAll(ListeAvecDoublons) ;
+        ArrayList<Piece> res = new ArrayList(set) ;
+        Collections.sort(res, new Comparator<Piece>() {
+            @Override
+            public int compare(Piece p2, Piece p1)
+            {
+                return  p2.getId_piece().compareTo(p1.getId_piece());
+            }
+        });
+        return res;
     }
 
     private void pieceListFromCachePieces() {
-        
-        List b = new ArrayList(cachePiece.getIfPresent("cachePieces"));
-        
-            pieceList.clear();
-            pieceList.addAll(b);
-       
+            
+        ArrayList<Piece> cache = listFromPiecesCache("cachePieces");
+        pieceList.clear();
+        pieceList.addAll(supprimerDoublonsListPieces(cache));
+    
     }
 
     private void pieceListFromCacheRechechePieces() {
-        
-        List b = new ArrayList(cachePieceRecherche.getIfPresent("cachePieceRecherche"));
-        
-            pieceList.clear();
-            pieceList.addAll(b);
+        ArrayList<Piece> cache = listFromPiecesCache("cachePiecesRecherche");
+        pieceList.clear();
+        pieceList.addAll(supprimerDoublonsListPieces(cache));
        
     }
     
+    
+    private ArrayList<Piece> listFromPiecesCache(String cacheKey) {
+        
+        ArrayList<Piece> b = new ArrayList<>();
+       
+        if(cacheKey.equals("cachePiecesRecherche"))
+                b.addAll(cachePieceRecherche.getIfPresent(cacheKey));
+        else b.addAll(cachePiece.getIfPresent(cacheKey));
+        return b;
+        //JOptionPane.showMessageDialog(null, "pieceListFromCacheRechechePieces "+pieceList.size());
+       
+    }
     
     
     
@@ -2209,20 +2153,258 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         }         // TODO add your handling code here:
     }//GEN-LAST:event_facturesProfessionnelsJTableMouseClicked
 
+    private void modifierjMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_modifierjMenuItemActionPerformed
+        modifierPieceJBActionPerformed(evt);
+    }//GEN-LAST:event_modifierjMenuItemActionPerformed
+
+    private void SprrimerjMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SprrimerjMenuItemActionPerformed
+        supprimerPieceJBActionPerformed(evt);    
+    }//GEN-LAST:event_SprrimerjMenuItemActionPerformed
+
+    private void piecesJTableMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_piecesJTableMouseReleased
+
+    }//GEN-LAST:event_piecesJTableMouseReleased
+
+    private void piecesJTableMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_piecesJTableMousePressed
+        if(SwingUtilities.isRightMouseButton(evt)){
+            int r;
+            Point p = evt.getPoint();
+
+            if(evt.isPopupTrigger()){
+
+                jPopupPieceTable.show(this, evt.getX(),evt.getY());
+
+            }
+            r = piecesJTable.rowAtPoint(p);
+            piecesJTable.setRowSelectionInterval(r, r);
+            showPieces();
+            pieceSelectionee = selectedPiece();
+            TitrejMenuItem.setText("ref "+pieceSelectionee.getReference());
+
+        }
+    }//GEN-LAST:event_piecesJTableMousePressed
+
     private void piecesJTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_piecesJTableMouseClicked
-          
+
         Point p = evt.getPoint();
         int r;
         r = piecesJTable.rowAtPoint(p);
-        
+
         piecesJTable.setRowSelectionInterval(0, r);
         pieceSelectionee = selectedPiece();
-        //JOptionPane.showMessageDialog(null, "Piece selectionée :"+pieceSelectionee);
+        majPieceInterface();
+
         
-           supprimerPieceJB.setEnabled(true);
-           modifierPieceJB.setEnabled(true);
-           ajouterPieceJB.setEnabled(false);
     }//GEN-LAST:event_piecesJTableMouseClicked
+
+    private void recherchePieceJTFKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_recherchePieceJTFKeyReleased
+
+        String recherche = this.recherchePieceJTF.getText().toUpperCase().trim();
+
+        //listPiecesToCache(rechercheParRefDesMarque(recherche),"cachePiecesRecherche");
+
+        pieceListFromCachePieces();
+        updateFilterPiece(recherche);
+
+        if(piecesJTable.getRowCount()!=0 && !"".equals(recherche))
+        {
+            piecesJTable.setRowSelectionInterval(0, 0);
+            majPieceInterface();
+        }
+        else{
+            piecesJTable.clearSelection();
+            recherchePieceInterface();
+        }
+        
+        
+        affichageRechercheResultats(cachePieceRecherche.getIfPresent("cachePiecesRecherche"));
+        showPieces();
+    }//GEN-LAST:event_recherchePieceJTFKeyReleased
+
+    
+     private void updateFilterPiece(String filterText) 
+{
+     int Ref = 1, Marque=2, Designation = 3;
+        int[] coloumns = {Ref, Marque ,Designation};
+	filterText = "(?i)" + filterText;
+	sorterPiece = cacheSorterPieces.getIfPresent("cacheSorterPieces");
+        
+	if (filterText.length() == 0) {
+		sorterPiece.setRowFilter(null);
+	} else {
+		try {
+                    RowFilter<Object, Object> rf = RowFilter.regexFilter(filterText,coloumns);
+			sorterPiece.setRowFilter(rf);
+		} catch (java.util.regex.PatternSyntaxException e) {
+			sorterPiece.setRowFilter(null);
+		}
+	}
+
+	
+}
+    
+    
+    
+    
+    private void supprimerPieceJBActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_supprimerPieceJBActionPerformed
+
+        FormulairePiece f = initFormulairePiece();
+        String message ="êtes-vous sûr de vouloir supprimer cette pièce du stock ? \n cette opreation est irreversible";
+        String titre = "Suppréssion de la pièce";
+        int confirmation = JOptionPane.showConfirmDialog(null,message,titre,JOptionPane.WARNING_MESSAGE);
+
+        //JOptionPane.showMessageDialog(null, "Piece selectionée avant supprsion:"+pieceSelectionee);
+
+        if(JOptionPane.OK_OPTION == confirmation )
+        {
+
+            Piece p = pieceSelectionee;
+
+            removePiece(p);
+
+            pieceListFromCacheRechechePieces();
+
+            Iterator<Piece> iterator = pieceList.iterator();
+
+            while(iterator.hasNext()){
+                if(Objects.equals((iterator.next()).getId_piece(), pieceSelectionee.getId_piece())){
+                    iterator.remove();
+                }
+            }
+            if(!recherchePieceJTF.equals(""))
+            {
+                pieceListToCachePieceRecherche();
+            }
+
+            ArrayList<Piece> pieces = new ArrayList<Piece>();
+            pieces = cachePiece.getIfPresent("cachePieces");
+            Iterator<Piece> itCachePieces = pieces.iterator();
+
+            while(itCachePieces.hasNext()){
+                if(Objects.equals((itCachePieces.next()).getId_piece(), pieceSelectionee.getId_piece())){
+                    itCachePieces.remove();
+                }
+            }
+
+            cachePiece.invalidateAll();
+            cachePiece.put("cachePieces",pieces);
+
+            updatePieceList();
+            razPieceInterface();
+            showPieces();
+            
+            message ="La piece a etée supprimer du stock";
+            JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
+
+        }
+        else
+        {
+            message ="L'operation de suppression annulée";
+            JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
+
+        }
+
+        this.resetFormulairePiece();
+        
+        
+    }//GEN-LAST:event_supprimerPieceJBActionPerformed
+
+    private void modifierPieceJBActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_modifierPieceJBActionPerformed
+
+        String message ="êtes-vous sûr de vouloir modifier cette pièce?";
+        String titre = "Modification de la pièce";
+
+        JOptionPane.showMessageDialog(null, "Piece selectionée avant modification:"+pieceSelectionee);
+
+        int confirmation = JOptionPane.showConfirmDialog(null,message,titre,JOptionPane.OK_CANCEL_OPTION);
+
+        if(JOptionPane.OK_OPTION == confirmation )
+        {
+            FormulairePiece f = initFormulairePiece();
+            Piece newPiece = null ;
+            if(f.hydrate().isEmpty())
+            {
+                newPiece = f.getPiece();
+                newPiece.setId_piece(pieceSelectionee.getId_piece());
+                this.fs.updatePiece(newPiece);
+
+                Iterator<Piece> iterator = pieceList.iterator();
+                int index = 0;
+                while(iterator.hasNext()){
+                    if(Objects.equals((iterator.next()).getId_piece(), pieceSelectionee.getId_piece())){
+                        index++;
+                    }
+                }
+
+                pieceList.set(index , newPiece);
+
+                piecesJTable.setRowSelectionInterval(index, 0);
+
+                if(!recherchePieceJTF.equals(""))
+                {
+                    cmpt++;
+                    JOptionPane.showMessageDialog(null, cmpt+"");
+                    pieceListToCachePieceRecherche();
+                }
+
+                else{ArrayList<Piece> pieces = new ArrayList<Piece>();
+
+                    pieces = cachePiece.getIfPresent("cachePieces");
+                    Iterator<Piece> itCachePieces = pieces.iterator();
+
+                    while(itCachePieces.hasNext()){
+                        if(Objects.equals((itCachePieces.next()).getId_piece(), pieceSelectionee.getId_piece())){
+                            index++;
+                        }
+                    }
+                    pieces.set(index , newPiece);
+
+                    cachePiece.invalidateAll();
+                    cachePiece.put("cachePieces",pieces);}
+
+                updatePieceList();
+
+                //JOptionPane.showMessageDialog(null, "Piece selectionée avant modification:"+pieceSelectionee);
+                message ="La pièce a été modifiée";
+                JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
+                
+                razPieceInterface();
+            }
+            else
+            {
+                displayError(this.conteneurStockJP,f.validate());
+                message ="Opération Annulée";
+                JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
+            }
+
+        }
+        else
+        {
+            message ="Opération Annulée";
+            JOptionPane.showMessageDialog(null,message,titre,JOptionPane.INFORMATION_MESSAGE);
+        }
+        showPieces();
+        resetFormulairePiece();
+
+    }//GEN-LAST:event_modifierPieceJBActionPerformed
+
+    private void ajouterPieceJBActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ajouterPieceJBActionPerformed
+        // JOptionPane.showMessageDialog(null, "Piece selectionée avant Ajout:"+pieceSelectionee);
+        ajouterPieceJtableRow();
+        
+         majPieceInterface();
+        // this.recherchePieceJTFActionPerformed(evt);
+        piecesJTable.setRowSelectionInterval(0, piecesJTable.getRowCount()-1);
+        piecesJTable.getSelectionModel().setSelectionInterval(piecesJTable.getSelectedRow(), piecesJTable.getSelectedColumn());
+        piecesJTable.scrollRectToVisible(new Rectangle(piecesJTable.getCellRect(piecesJTable.getSelectedRow(), 0, true)));
+        pieceSelectionee = selectedPiece();
+        // JOptionPane.showMessageDialog(null, "Piece selectionée apres Ajout:"+pieceSelectionee);
+    }//GEN-LAST:event_ajouterPieceJBActionPerformed
+
+    private void nouvelleJbActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_nouvelleJbActionPerformed
+        razPieceInterface();
+        
+    }//GEN-LAST:event_nouvelleJbActionPerformed
     
     public void changerCard(String cardName){
         Container contentPane = this.getContentPane();
@@ -2264,48 +2446,49 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     public void ajouterPieceJtableRow(){
        
         FormulairePiece f = initFormulairePiece();
-        
-        
-        
         if(f.hydrate().isEmpty())
         {
-           
+            this.fs.addPiece(f.getPiece());    
             pieceList.add(f.getPiece());
-            
-            this.fs.addPiece(f.getPiece()); 
-            
             pieceListToCachePieceRecherche();
+            
             
             ArrayList pieces =  new ArrayList(cachePiece.getIfPresent("cachePieces"));
             pieces.add(f.getPiece());
-            cachePiece.put("cachePieces",pieces);
             
+            
+            cachePiece.invalidateAll();
+            cachePiece.put("cachePieces",pieces);
+            JOptionPane.showMessageDialog(null, "ajouter "+cachePiece.size());
         }
         else
         {
             displayError(null,f.validate());
         }
-        showPieces();
         
-        ArrayList test = new ArrayList<Piece>();
-            
-        test = cachePiece.getIfPresent("cachePieces");
-        Piece  lastp  = (Piece) test.get(test.size()-1);
-        System.out.println(lastp);
+      showPieces(); 
+      affichageNbrRefs();
+      
+      //JOptionPane.showMessageDialog(null, piecesJTable.getSelectedRow());
     }
 
     public void pieceListToCachePieces() {
-       
+        cachePiece.invalidateAll();
+        cachePiece.cleanUp();
+        
+        
         ArrayList<Piece> b = new ArrayList<>(pieceList);
         cachePiece.put("cachePieces", b);
         
     }
     
      public void pieceListToCachePieceRecherche() {
-       
-        ArrayList<Piece> b = new ArrayList<>(pieceList);
-        cachePiece.put("cachePieceRecherche", b);
+         
+       cachePieceRecherche.invalidateAll();
+            ArrayList<Piece> b = new ArrayList<>(pieceList);
+       cachePieceRecherche.put("cachePiecesRecherche", b);
         
+        //JOptionPane.showMessageDialog(null, "pieceListToCachePieceRecherche "+b.size());
     }
     
     
@@ -2331,7 +2514,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     public FormulairePiece initFormulairePiece(){
         FormulairePiece formulaire = new FormulairePiece(
                 this.referencePieceJT.getText(),
-                this.designationPieceJT.getText(),
+                this.designationPieceJTA.getText(),
                 this.marquePieceJT.getText(),
                 this.quantiteJT.getText(),
                 this.prixVentePieceJT.getText(), 
@@ -2344,12 +2527,11 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     
     public void resetFormulairePiece(){
                 
-                this.piecesJTable.setSelectionMode(0);
-                this.modifierPieceJB.setEnabled(false);
-                this.supprimerPieceJB.setEnabled(false);
-                this.ajouterPieceJB.setEnabled(true);
                 this.referencePieceJT.setText("");
-                this.designationPieceJT.setText("");
+                
+                this.designationPieceJTA.selectAll();
+                this.designationPieceJTA.setText("");
+                
                 this.marquePieceJT.setText("");
                 this.quantiteJT.setText("");
                 this.prixVentePieceJT.setText("");
@@ -2601,6 +2783,8 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     }
      
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JMenuItem SprrimerjMenuItem;
+    private javax.swing.JMenuItem TitrejMenuItem;
     private javax.swing.JMenu accueilJM;
     private javax.swing.JPanel ajoutModificationJP;
     private javax.swing.JPanel ajouterFactureJP;
@@ -2626,7 +2810,8 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     private javax.swing.JRadioButton dateFacturationParticulierJRB;
     private javax.swing.JRadioButton dateLivraisonParticulierJRB;
     private javax.swing.JLabel designationJL;
-    private javax.swing.JTextField designationPieceJT;
+    private javax.swing.JScrollPane designationPieceJPA;
+    private javax.swing.JTextArea designationPieceJTA;
     private javax.persistence.EntityManager entityManager;
     private javax.swing.JMenuItem factureJMI;
     private javax.swing.JPanel factureParticulierJP;
@@ -2674,6 +2859,8 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     private javax.swing.JButton jButton5;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JPopupMenu jPopupPieceTable;
+    private javax.swing.JPopupMenu.Separator jSeparator1;
     private javax.swing.JLabel lieuJL;
     private javax.swing.JScrollPane lieuJSP;
     private javax.swing.JTextArea lieuJTA;
@@ -2686,6 +2873,8 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     private javax.swing.JButton modifierParticulieJB;
     private javax.swing.JButton modifierPieceJB;
     private javax.swing.JButton modifierProfessionnelJB;
+    private javax.swing.JMenuItem modifierjMenuItem;
+    private javax.swing.JLabel nbrRefjL;
     private javax.swing.JRadioButton nomFactureParticulierJRB;
     private javax.swing.JLabel nomJL;
     private javax.swing.JRadioButton nomJRB;
@@ -2693,6 +2882,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     private javax.swing.JLabel nomSocieteJL;
     private javax.swing.JRadioButton nomSocieteJRB;
     private javax.swing.JTextField nomSocieteJTF;
+    private javax.swing.JButton nouvelleJb;
     private javax.swing.JRadioButton numeroFactureParticulierJRB;
     private javax.swing.JTable particulieJTable;
     private java.util.List particulierList;
@@ -2701,6 +2891,7 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
     private javax.swing.JScrollPane particuliesJSP;
     private javax.swing.JPanel particuliesTabJP;
     private java.util.List<facturation.entities.Piece> pieceList;
+    private javax.swing.JLabel pieceNbrResultatsJl;
     private javax.persistence.Query pieceQuery;
     private javax.swing.JPanel piecesCardJP;
     private javax.swing.JMenuItem piecesJMI;
@@ -2946,15 +3137,152 @@ public class FactureUI extends javax.swing.JFrame implements Observateur{
         return  model;
     }
    
-    
-    
-   
+  
+private void affichageRechercheResultats( List<Piece> list) {
+        if(!recherchePieceJTF.getText().equals("") && list!=null)
+        {
+        int count = list.size();
+        switch (count) {
+            case 0:
+                pieceNbrResultatsJl.setText("* " +count+" Aucune Piece trouvée!");
+                break;
+            case 1:
+                pieceNbrResultatsJl.setText("* " +count+"Une seule Piece trouvée! ");
+                break;
+            default:
+                pieceNbrResultatsJl.setText("* " +count+" Pieces trouvées!");
+                break;
+        }
+        }
+        else pieceNbrResultatsJl.setText("");
+    }
 
-    
+private void affichageNbrRefs() {
+    try {
+        if(cachePiece.getIfPresent("cachePieces")==null)
+            nbrRefjL.setText("");
+        else {
+            int count;
+            count = cachePiece.getIfPresent("cachePieces").size();
+            switch (count) {
+                case 0:
+                    nbrRefjL.setText("* " +count+" Aucune Reference enregistrée!");
+                    break;
+                case 1:
+                    nbrRefjL.setText("* " +count+"Une seule Reference enregistrée! ");
+                    break;
+                default:
+                    nbrRefjL.setText("* " +count+" References enregistrées!");
+                    break;
+            }
+        }
+    } catch (Exception e) {
+    }
+        
+    }
 
-   
+
+    private void listPiecesToCache(ArrayList<Piece> liste, String cacheKey) {
+        
+        if(cacheKey.equals("cachePiecesRecherche")){
+            
+            cachePieceRecherche.invalidateAll();
+            cachePieceRecherche.cleanUp();
+            cachePieceRecherche.put("cachePiecesRecherche", liste);
+        
+        }
+        else{
+            
+            cachePiece.invalidateAll();
+            cachePiece.cleanUp();
+            cachePiece.put("cachePiecesRecherche", liste);
+        }
+        
+        
+    }
+
+    //<editor-fold defaultstate="collapsed" desc="maj Graphique">
+    private void showPieces() {
+        // piecesJTable.repaint();
+        bindingPiecesTable();
+        
+    }
     
-   
+    private void recherchePieceInterface(){
+        
+        resetFormulairePiece();
+        supprimerPieceJB.setVisible(false);
+        modifierPieceJB.setVisible(false);
+        ajouterPieceJB.setVisible(true);
+        nouvelleJb.setText("Annuler");
+        
+        
+       pieceListFromCachePieces();
+       showPieces();
+        
+        
+    }
+    
+    private void razPieceInterface() {
+        recherchePieceInterface();
+        recherchePieceJTF.setText("");
+        affichageNbrRefs();
+        chargementCachePieces();
+        TableRowSorter<TableModel> s = cacheSorterPieces.getIfPresent("cacheSorterPieces");
+        s.setRowFilter(null);
+        piecesJTable.setRowSorter(s);
+       
+    }
+    
+    private void majPieceInterface() {
+        
+        modifierPieceJB.setVisible(true);
+        supprimerPieceJB.setVisible(true);
+        ajouterPieceJB.setVisible(false);
+        nouvelleJb.setText("Creér une Piéce");
+        
+        
+    }
+    
+    
+    
+    
+    
+    private void bindingPiecesTable() {
+        org.jdesktop.swingbinding.JTableBinding jTableBinding = org.jdesktop.swingbinding.SwingBindings.createJTableBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ_WRITE, pieceList, piecesJTable);
+        org.jdesktop.swingbinding.JTableBinding.ColumnBinding columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${id_piece}"));
+        columnBinding.setColumnName("N° Piece");
+        columnBinding.setColumnClass(Long.class);
+        columnBinding.setEditable(false);
+        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${reference}"));
+        columnBinding.setColumnName("Reference");
+        columnBinding.setColumnClass(String.class);
+        columnBinding.setEditable(false);
+        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${designation}"));
+        columnBinding.setColumnName("Designation");
+        columnBinding.setColumnClass(String.class);
+        columnBinding.setEditable(false);
+        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${marque}"));
+        columnBinding.setColumnName("Marque");
+        columnBinding.setColumnClass(String.class);
+        columnBinding.setEditable(false);
+        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${prixAchat}"));
+        columnBinding.setColumnName("Prix Achat");
+        columnBinding.setColumnClass(Double.class);
+        columnBinding.setEditable(false);
+        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${prixVente}"));
+        columnBinding.setColumnName("Prix Vente");
+        columnBinding.setColumnClass(Double.class);
+        columnBinding.setEditable(false);
+        columnBinding = jTableBinding.addColumnBinding(org.jdesktop.beansbinding.ELProperty.create("${quantite}"));
+        columnBinding.setColumnName("Quantite");
+        columnBinding.setColumnClass(Integer.class);
+        columnBinding.setEditable(false);
+        
+        jTableBinding.bind();
+        
+    }
+//</editor-fold>
     
 }   
 
